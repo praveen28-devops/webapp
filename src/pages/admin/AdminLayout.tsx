@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, FileText, Plus, Settings } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -8,6 +9,7 @@ interface AdminLayoutProps {
 
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const location = useLocation();
+  const { signOut } = useAuth();
 
   const navigation = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard, current: location.pathname === '/admin' },
@@ -46,14 +48,19 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                   );
                 })}
               </nav>
-              
-              <div className="flex-shrink-0 p-4 border-t border-gray-700">
+              <div className="flex-shrink-0 p-4 border-t border-gray-700 flex flex-col gap-2">
                 <Link
                   to="/"
                   className="flex items-center text-gray-300 hover:text-white transition-colors"
                 >
                   ← Back to Website
                 </Link>
+                <button
+                  onClick={signOut}
+                  className="mt-2 w-full bg-red-600 text-white py-2 rounded font-semibold hover:bg-red-700 transition"
+                >
+                  Logout
+                </button>
               </div>
             </div>
           </div>

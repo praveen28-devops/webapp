@@ -6,6 +6,7 @@ import { BlogPost } from '../../types/blog';
 import AdminLayout from './AdminLayout';
 import MdEditor from 'react-markdown-editor-lite';
 import 'react-markdown-editor-lite/lib/index.css';
+import { supabase } from '../../utils/supabaseClient';
 
 const PostEditor: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -43,11 +44,14 @@ const PostEditor: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent, status: BlogPost['status']) => {
     e.preventDefault();
-    
+
+    // Auto-convert image URLs on their own line to markdown image syntax
+    let content = formData.content.replace(/^(https?:\/\/\S+\.(?:png|jpe?g|gif|webp|svg))/gim, '![]($1)');
+
     const postData = {
       title: formData.title,
       excerpt: formData.excerpt,
-      content: formData.content,
+      content,
       author: 'Gokul M',
       category: formData.category,
       tags: formData.tags.split(',').map(tag => tag.trim()).filter(Boolean),
@@ -168,12 +172,17 @@ const PostEditor: React.FC = () => {
                     syncScrollMode: ['leftFollowRight', 'rightFollowLeft'],
                   }}
                   onImageUpload={async (file, callback) => {
-                    // For now, use a local URL preview. For production, upload to a storage service and use the URL.
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                      callback(reader.result as string);
-                    };
-                    reader.readAsDataURL(file);
+                    // Upload image to Supabase Storage
+                    const fileExt = file.name.split('.').pop();
+                    const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+                    const { data, error } = await supabase.storage.from('blog-images').upload(fileName, file);
+                    if (error) {
+                      alert('Image upload failed: ' + error.message);
+                      return;
+                    }
+                    // Get public URL
+                    const { data: publicUrlData } = supabase.storage.from('blog-images').getPublicUrl(fileName);
+                    callback(publicUrlData.publicUrl);
                   }}
                 />
               </div>

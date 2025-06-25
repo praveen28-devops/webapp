@@ -2,6 +2,8 @@ import React from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
 import { Calendar, Clock, Tag, ArrowLeft, Share2 } from 'lucide-react';
 import { useBlog } from '../contexts/BlogContext';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const PostPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -137,15 +139,7 @@ const PostPage: React.FC = () => {
 
       {/* Post Content */}
       <div className="prose prose-lg max-w-none mb-8">
-        <div 
-          className="text-gray-800 leading-relaxed"
-          dangerouslySetInnerHTML={{ 
-            __html: post.content.replace(/\n/g, '<br/>').replace(/#{1,6}\s(.+)/g, (match, title) => {
-              const level = match.match(/^#+/)[0].length;
-              return `<h${level} class="text-${4-level}xl font-bold mt-8 mb-4 text-gray-900">${title}</h${level}>`;
-            }).replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre class="bg-gray-900 text-white p-4 rounded-lg overflow-x-auto my-6"><code>$2</code></pre>')
-          }}
-        />
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>
       </div>
 
       {/* Tags */}

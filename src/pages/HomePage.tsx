@@ -6,7 +6,7 @@ import BlogList from '../components/Blog/BlogList';
 
 const HomePage: React.FC = () => {
   const { posts } = useBlog();
-  const recentPosts = posts.filter(post => post.status === 'published').slice(0, 6);
+  const recentPosts = posts.filter(post => post.status === 'published').slice(0, 7);
 
   const categories = [
     {
