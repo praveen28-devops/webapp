@@ -53,17 +53,17 @@ const HomePage: React.FC = () => {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
-                to="#recent-posts"
+                to="/posts"
                 className="inline-flex items-center px-8 py-4 bg-white text-blue-900 rounded-lg font-semibold hover:bg-blue-50 transition-all duration-300 transform hover:scale-105"
               >
                 Explore Posts
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
               <Link
-                to="/about"
-                className="inline-flex items-center px-8 py-4 border-2 border-white text-white rounded-lg font-semibold hover:bg-white hover:text-blue-900 transition-all duration-300"
+                to="/subscribe"
+                className="inline-flex items-center px-8 py-4 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all duration-300 transform hover:scale-105"
               >
-                About Me
+                Subscribe
               </Link>
             </div>
           </div>

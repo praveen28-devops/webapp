@@ -1,11 +1,18 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Search, Menu, X, Code } from 'lucide-react';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
+  const [dropdownKey, setDropdownKey] = useState(0);
+
+  React.useEffect(() => {
+    // Close all dropdowns by resetting key on route change
+    setDropdownKey(prev => prev + 1);
+  }, [location.pathname]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,18 +45,45 @@ const Header: React.FC = () => {
             <Link to="/" className="text-gray-700 hover:text-blue-600 transition-colors">
               Home
             </Link>
-            {categories.map((category) => (
-              <Link
-                key={category.name}
-                to={category.path}
-                className="text-gray-700 hover:text-blue-600 transition-colors"
-              >
-                {category.name}
-              </Link>
-            ))}
-            <Link to="/about" className="text-gray-700 hover:text-blue-600 transition-colors">
-              About
+            {/* Blogs Dropdown */}
+            <div
+              key={`blogs-dropdown-${dropdownKey}`}
+              className="relative group"
+              tabIndex={0}
+            >
+              <div className="text-gray-700 hover:text-blue-600 transition-colors flex items-center select-none cursor-pointer">
+                Blogs
+                <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+              </div>
+              <div className="absolute left-0 mt-2 w-48 bg-white border border-gray-200 rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-opacity duration-300 z-20 py-2">
+                <Link to="/category/devops" className="block px-4 py-3 text-gray-700 hover:bg-gray-100">DevOps</Link>
+                <Link to="/category/cloud" className="block px-4 py-3 text-gray-700 hover:bg-gray-100">Cloud</Link>
+                <Link to="/category/software-development" className="block px-4 py-3 text-gray-700 hover:bg-gray-100">Software Development</Link>
+              </div>
+            </div>
+            {/* Job Session Dropdown */}
+            <Link to="/jobs" className="text-gray-700 hover:text-blue-600 transition-colors flex items-center">
+              Jobs
+              <span className="text-[10px] ml-1 align-top bg-gradient-to-r from-pink-500 via-yellow-400 to-green-400 bg-clip-text text-transparent font-bold">(fresher)</span>
             </Link>
+            <Link to="/cheatsheets" className="text-gray-700 hover:text-blue-600 transition-colors">
+              Cheatsheets
+            </Link>
+            {/* Policy Dropdown */}
+            <div
+              key={`policy-dropdown-${dropdownKey}`}
+              className="relative group"
+              tabIndex={0}
+            >
+              <div className="text-gray-700 hover:text-blue-600 transition-colors flex items-center select-none cursor-pointer">
+                Policy
+                <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+              </div>
+              <div className="absolute left-0 mt-2 w-48 bg-white border border-gray-200 rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-opacity duration-300 z-20 py-2">
+                <Link to="/terms" className="block px-4 py-3 text-gray-700 hover:bg-gray-100">Terms of Use</Link>
+                <Link to="/privacy" className="block px-4 py-3 text-gray-700 hover:bg-gray-100">Privacy Policy</Link>
+              </div>
+            </div>
           </nav>
 
           {/* Search Bar */}
@@ -88,23 +122,39 @@ const Header: React.FC = () => {
               >
                 Home
               </Link>
-              {categories.map((category) => (
-                <Link
-                  key={category.name}
-                  to={category.path}
-                  onClick={() => setIsMenuOpen(false)}
-                  className="text-gray-700 hover:text-blue-600"
-                >
-                  {category.name}
-                </Link>
-              ))}
+              {/* Blogs Mobile Dropdown */}
+              <details className="group">
+                <summary className="text-gray-700 hover:text-blue-600 cursor-pointer select-none">Blogs</summary>
+                <div className="ml-4 flex flex-col space-y-2 mt-2">
+                  <Link to="/category/devops" onClick={() => setIsMenuOpen(false)} className="text-gray-700 hover:text-blue-600">DevOps</Link>
+                  <Link to="/category/cloud" onClick={() => setIsMenuOpen(false)} className="text-gray-700 hover:text-blue-600">Cloud</Link>
+                  <Link to="/category/software-development" onClick={() => setIsMenuOpen(false)} className="text-gray-700 hover:text-blue-600">Software Development</Link>
+                </div>
+              </details>
+              {/* Job Session Mobile Dropdown */}
               <Link
-                to="/about"
+                to="/jobs"
+                onClick={() => setIsMenuOpen(false)}
+                className="text-gray-700 hover:text-blue-600 flex items-center"
+              >
+                Jobs
+                <span className="text-[10px] ml-1 align-top bg-gradient-to-r from-pink-500 via-yellow-400 to-green-400 bg-clip-text text-transparent font-bold">(fresher)</span>
+              </Link>
+              <Link
+                to="/cheatsheets"
                 onClick={() => setIsMenuOpen(false)}
                 className="text-gray-700 hover:text-blue-600"
               >
-                About
+                Cheatsheets
               </Link>
+              {/* Policy Mobile Dropdown */}
+              <details className="group">
+                <summary className="text-gray-700 hover:text-blue-600 cursor-pointer select-none">Policy</summary>
+                <div className="ml-4 flex flex-col space-y-2 mt-2">
+                  <Link to="/terms" onClick={() => setIsMenuOpen(false)} className="text-gray-700 hover:text-blue-600">Terms of Use</Link>
+                  <Link to="/privacy" onClick={() => setIsMenuOpen(false)} className="text-gray-700 hover:text-blue-600">Privacy Policy</Link>
+                </div>
+              </details>
             </nav>
           </div>
         )}

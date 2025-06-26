@@ -132,6 +132,21 @@ const AdminDashboard: React.FC = () => {
                 </div>
               </div>
             </Link>
+
+            <Link
+              to="/admin/jobs"
+              className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow group"
+            >
+              <div className="flex items-center">
+                <div className="bg-yellow-600 rounded-md p-3 group-hover:bg-yellow-700 transition-colors">
+                  <Users className="h-6 w-6 text-white" />
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-medium text-gray-900">Manage Jobs</h3>
+                  <p className="text-gray-500">Add or remove job opportunities</p>
+                </div>
+              </div>
+            </Link>
           </div>
         </div>
 

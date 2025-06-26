@@ -73,6 +73,16 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           </main>
         </div>
       </div>
+
+      {/* Mobile Logout Button */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 flex md:hidden bg-white border-t border-gray-300 p-2 justify-center">
+        <button
+          onClick={signOut}
+          className="w-full max-w-xs bg-red-600 text-white py-2 rounded font-semibold hover:bg-red-700 transition shadow"
+        >
+          Logout
+        </button>
+      </div>
     </div>
   );
 };
