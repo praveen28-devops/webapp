@@ -26,7 +26,7 @@ const SubscribePage: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="max-w-md w-full bg-white p-8 rounded-lg shadow">
         <h1 className="text-2xl font-bold mb-4 text-center">Subscribe for Updates</h1>
-        <p className="mb-6 text-gray-600 text-center">Enter your email to get notified when new posts are published.</p>
+        <p className="mb-6 text-gray-600 text-center">You'll get notified when new posts are published.</p>
         {submitted ? (
           <div className="text-green-600 font-semibold text-center">Thank you for subscribing!</div>
         ) : (

@@ -1,3 +1,68 @@
+/* Ensure Quill content alignment and font size work in frontend */
+.quill-content img {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+.quill-content .ql-align-center {
+  text-align: center;
+}
+.quill-content .ql-align-right {
+  text-align: right;
+}
+.quill-content .ql-align-justify {
+  text-align: justify;
+}
+.quill-content .ql-size-small {
+  font-size: 0.75em;
+}
+.quill-content .ql-size-large {
+  font-size: 1.5em;
+}
+.quill-content .ql-size-huge {
+  font-size: 2.5em;
+}
+.quill-content [style*="font-size"] {
+  font-size: inherit !important;
+}
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Quill custom fonts support */
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="serif"],
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="serif"] {
+  font-family: serif;
+}
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="monospace"],
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="monospace"] {
+  font-family: monospace;
+}
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="sans-serif"],
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="sans-serif"] {
+  font-family: sans-serif;
+}
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="arial"],
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="arial"] {
+  font-family: Arial, Helvetica, sans-serif;
+}
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="georgia"],
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="georgia"] {
+  font-family: Georgia, serif;
+}
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="courier"],
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="courier"] {
+  font-family: Courier New, Courier, monospace;
+}
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="comic-sans"],
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="comic-sans"] {
+  font-family: "Comic Sans MS", cursive, sans-serif;
+}
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="helvetica"],
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="helvetica"] {
+  font-family: Helvetica, Arial, sans-serif;
+}
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="lucida"],
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="lucida"] {
+  font-family: "Lucida Sans Unicode", "Lucida Grande", sans-serif;
+}

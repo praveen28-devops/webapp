@@ -37,7 +37,7 @@ const Header: React.FC = () => {
             <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-2 rounded-lg">
               <Code className="h-6 w-6 text-white" />
             </div>
-            <span className="text-xl font-bold text-gray-900">DevBlog</span>
+            <span className="text-xl font-bold text-gray-900">DevsBlog</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -46,21 +46,27 @@ const Header: React.FC = () => {
               Home
             </Link>
             {/* Blogs Dropdown */}
+            
+            
+            
             <div
-              key={`blogs-dropdown-${dropdownKey}`}
-              className="relative group"
-              tabIndex={0}
-            >
-              <div className="text-gray-700 hover:text-blue-600 transition-colors flex items-center select-none cursor-pointer">
-                Blogs
-                <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-              </div>
-              <div className="absolute left-0 mt-2 w-48 bg-white border border-gray-200 rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-opacity duration-300 z-20 py-2">
-                <Link to="/category/devops" className="block px-4 py-3 text-gray-700 hover:bg-gray-100">DevOps</Link>
-                <Link to="/category/cloud" className="block px-4 py-3 text-gray-700 hover:bg-gray-100">Cloud</Link>
-                <Link to="/category/software-development" className="block px-4 py-3 text-gray-700 hover:bg-gray-100">Software Development</Link>
-              </div>
-            </div>
+  key={`blogs-dropdown-${dropdownKey}`}
+  className="relative group"
+  tabIndex={0}
+>
+  <div className="text-gray-700 hover:text-blue-600 transition-colors flex items-center select-none cursor-pointer">
+    Blogs
+    <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+  </div>
+  <div className="absolute left-0 mt-2 w-48 bg-white border border-gray-200 rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-all duration-200 z-50 py-2">
+    <Link to="/category/devops" className="block px-4 py-3 text-gray-700 hover:bg-gray-100">DevOps</Link>
+    <Link to="/category/cloud" className="block px-4 py-3 text-gray-700 hover:bg-gray-100">Cloud</Link>
+    <Link to="/category/software-development" className="block px-4 py-3 text-gray-700 hover:bg-gray-100">Software Development</Link>
+  </div>
+</div>
+
+
+
             {/* Job Session Dropdown */}
             <Link to="/jobs" className="text-gray-700 hover:text-blue-600 transition-colors flex items-center">
               Jobs
@@ -71,19 +77,22 @@ const Header: React.FC = () => {
             </Link>
             {/* Policy Dropdown */}
             <div
-              key={`policy-dropdown-${dropdownKey}`}
-              className="relative group"
-              tabIndex={0}
-            >
-              <div className="text-gray-700 hover:text-blue-600 transition-colors flex items-center select-none cursor-pointer">
-                Policy
-                <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-              </div>
-              <div className="absolute left-0 mt-2 w-48 bg-white border border-gray-200 rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-opacity duration-300 z-20 py-2">
-                <Link to="/terms" className="block px-4 py-3 text-gray-700 hover:bg-gray-100">Terms of Use</Link>
-                <Link to="/privacy" className="block px-4 py-3 text-gray-700 hover:bg-gray-100">Privacy Policy</Link>
-              </div>
-            </div>
+  key={`policy-dropdown-${dropdownKey}`}
+  className="relative group"
+  tabIndex={0}
+>
+  <div className="text-gray-700 hover:text-blue-600 transition-colors flex items-center select-none cursor-pointer">
+    Policy
+    <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+  </div>
+  <div className="absolute left-0 mt-2 w-48 bg-white border border-gray-200 rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-all duration-200 z-50 py-2">
+    <Link to="/terms" className="block px-4 py-3 text-gray-700 hover:bg-gray-100">Terms of Use</Link>
+    <Link to="/privacy" className="block px-4 py-3 text-gray-700 hover:bg-gray-100">Privacy Policy</Link>
+  </div>
+</div>
+
+
+
           </nav>
 
           {/* Search Bar */}

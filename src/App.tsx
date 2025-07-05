@@ -1,4 +1,5 @@
 import React from 'react';
+import './quill.snow.css';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { BlogProvider } from './contexts/BlogContext';
 import { AuthProvider } from './contexts/AuthContext';

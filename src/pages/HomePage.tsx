@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Code, Cloud, Settings, TrendingUp } from 'lucide-react';
@@ -97,11 +98,9 @@ const HomePage: React.FC = () => {
                 <h3 className="text-xl font-semibold text-gray-900 mb-3 group-hover:text-blue-600 transition-colors">
                   {category.name}
                 </h3>
-                
                 <p className="text-gray-600 mb-4">
                   {category.description}
                 </p>
-                
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-500">
                     {category.count} posts
@@ -134,9 +133,7 @@ const HomePage: React.FC = () => {
             <ArrowRight className="ml-1 h-4 w-4" />
           </Link>
         </div>
-        
         <BlogList posts={recentPosts} showFeatured={true} />
-        
         <div className="text-center mt-12">
           <Link
             to="/posts"
@@ -155,7 +152,6 @@ const HomePage: React.FC = () => {
             <h2 className="text-3xl font-bold mb-4">Growing Community</h2>
             <p className="text-gray-300">Join thousands of developers learning together</p>
           </div>
-          
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div className="text-center">
               <div className="text-3xl font-bold text-blue-400 mb-2">{posts.filter(p => p.status === 'published').length}</div>

@@ -14,7 +14,7 @@ const Footer: React.FC = () => {
               <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-2 rounded-lg">
                 <Code className="h-6 w-6 text-white" />
               </div>
-              <span className="text-xl font-bold">DevBlog</span>
+              <span className="text-xl font-bold">DevsBlog</span>
             </Link>
             <p className="text-gray-400 text-sm">
               Sharing insights on DevOps, Cloud, and Software Development to help developers build better systems.

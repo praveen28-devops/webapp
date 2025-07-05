@@ -4,8 +4,22 @@ import { Save, Eye, ArrowLeft } from 'lucide-react';
 import { useBlog } from '../../contexts/BlogContext';
 import { BlogPost } from '../../types/blog';
 import AdminLayout from './AdminLayout';
-import MdEditor from 'react-markdown-editor-lite';
-import 'react-markdown-editor-lite/lib/index.css';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
+import ImageResize from 'quill-image-resize-module-react';
+
+import Quill from 'quill';
+Quill.register('modules/imageResize', ImageResize);
+// Register font and size formats (extended fonts and custom sizes)
+const Font = Quill.import('formats/font');
+Font.whitelist = [
+  'sans-serif', 'serif', 'monospace', 'arial', 'comic-sans', 'courier', 'georgia', 'helvetica', 'lucida'
+];
+Quill.register(Font, true);
+const Size = Quill.import('attributors/style/size');
+// Allow any value for size (custom input)
+Size.whitelist = null;
+Quill.register(Size, true);
 import { supabase } from '../../utils/supabaseClient';
 
 const PostEditor: React.FC = () => {
@@ -71,6 +85,7 @@ const PostEditor: React.FC = () => {
     navigate('/admin');
   };
 
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -79,8 +94,24 @@ const PostEditor: React.FC = () => {
     }));
   };
 
-  const handleContentChange = ({ text }: { text: string }) => {
-    setFormData(prev => ({ ...prev, content: text }));
+  // Handle featured image upload
+  const handleFeaturedImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+    const { data, error } = await supabase.storage.from('featured-images').upload(fileName, file);
+    if (error) {
+      alert('Image upload failed: ' + error.message);
+      return;
+    }
+    const { data: publicUrlData } = supabase.storage.from('featured-images').getPublicUrl(fileName);
+    setFormData(prev => ({ ...prev, featuredImage: publicUrlData.publicUrl }));
+  };
+
+
+  const handleContentChange = (value: string) => {
+    setFormData(prev => ({ ...prev, content: value }));
   };
 
   return (
@@ -147,47 +178,32 @@ const PostEditor: React.FC = () => {
                 Content *
               </label>
               <div className="border rounded-lg shadow-sm overflow-hidden">
-                <MdEditor
+                <ReactQuill
                   value={formData.content}
-                  style={{ height: '400px', border: 'none' }}
-                  renderHTML={text => text}
                   onChange={handleContentChange}
-                  config={{
-                    view: {
-                      menu: true,
-                      md: true,
-                      html: true,
-                    },
-                    canView: {
-                      menu: true,
-                      md: true,
-                      html: true,
-                      fullScreen: true,
-                      hideMenu: true,
-                    },
-                    shortcuts: true,
-                    placeholder: 'Write your post content here... (Supports markdown, code blocks, and images)',
-                    imageAccept: '.jpg,.png,.jpeg,.gif,.webp',
-                    imageUrl: 'https://',
-                    syncScrollMode: ['leftFollowRight', 'rightFollowLeft'],
-                  }}
-                  onImageUpload={async (file, callback) => {
-                    // Upload image to Supabase Storage
-                    const fileExt = file.name.split('.').pop();
-                    const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-                    const { data, error } = await supabase.storage.from('blog-images').upload(fileName, file);
-                    if (error) {
-                      alert('Image upload failed: ' + error.message);
-                      return;
+                  theme="snow"
+                  modules={{
+                    toolbar: [
+                      [{ 'font': [
+                        'sans-serif', 'serif', 'monospace', 'arial', 'comic-sans', 'courier', 'georgia', 'helvetica', 'lucida'
+                      ] }],
+                      [{ 'size': ['8px', '10px', '12px', '14px', '16px', '18px', '24px', '32px', '48px', false] }],
+                      [{ 'header': [1, 2, 3, false] }],
+                      ['bold', 'italic', 'underline', 'strike', { 'color': [] }, { 'background': [] }],
+                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                      ['blockquote', 'code-block'],
+                      ['link', 'image'],
+                      ['clean']
+                    ],
+                    imageResize: {
+                      parchment: Quill.import('parchment'),
                     }
-                    // Get public URL
-                    const { data: publicUrlData } = supabase.storage.from('blog-images').getPublicUrl(fileName);
-                    callback(publicUrlData.publicUrl);
                   }}
+                  style={{ height: 400, marginBottom: 32 }}
                 />
               </div>
               <p className="mt-2 text-sm text-gray-500">
-                Use <span className="font-mono bg-gray-100 px-1 rounded">```</span> for code blocks, and the image button to insert images inline.
+                Use the toolbar to format text, add color, images, and more.
               </p>
             </div>
 
@@ -252,17 +268,28 @@ const PostEditor: React.FC = () => {
               <label htmlFor="featuredImage" className="block text-sm font-medium text-gray-700 mb-2">
                 Featured Image URL
               </label>
-              <input
-                type="url"
-                id="featuredImage"
-                name="featuredImage"
-                value={formData.featuredImage}
-                onChange={handleInputChange}
-                className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                placeholder="https://example.com/image.jpg"
-              />
+              <div className="flex flex-col gap-2">
+                <input
+                  type="url"
+                  id="featuredImage"
+                  name="featuredImage"
+                  value={formData.featuredImage}
+                  onChange={handleInputChange}
+                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="https://example.com/image.jpg"
+                />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFeaturedImageUpload}
+                  className="block w-full border-gray-300 rounded-md shadow-sm"
+                />
+                {formData.featuredImage && (
+                  <img src={formData.featuredImage} alt="Featured Preview" className="mt-2 max-h-40 rounded" />
+                )}
+              </div>
               <p className="mt-1 text-sm text-gray-500">
-                Recommended: Use images from Pexels or other free stock photo sites
+                You can paste an image URL or upload from your computer.
               </p>
             </div>
           </div>

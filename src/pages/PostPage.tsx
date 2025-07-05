@@ -138,9 +138,7 @@ const PostPage: React.FC = () => {
       )}
 
       {/* Post Content */}
-      <div className="prose prose-lg max-w-none mb-8">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>
-      </div>
+      <div className="quill-content mb-8" dangerouslySetInnerHTML={{ __html: post.content }} />
 
       {/* Tags */}
       {post.tags.length > 0 && (
