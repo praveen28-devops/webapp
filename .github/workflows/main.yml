@@ -152,7 +152,7 @@ jobs:
           name: sbom-reports
       - name: Extract SBOM/Grype Summary
         run: |
-          GRYPE_SUMMARY=$(jq -r '[.matches[] | select(.vulnerability.severity == "High" or .vulnerability.severity == "Critical")] | group_by(.vulnerability.severity) | map({severity: .[0].vulnerability.severity, count: length})' ./sbom-output/sbom-frontend/sbom-frontend-grype-report.json)
+          GRYPE_SUMMARY=$(jq -r '[.matches[] | select(.vulnerability.severity == "High" or .vulnerability.severity == "Critical")] | group_by(.vulnerability.severity) | map({severity: .[0].vulnerability.severity, count: length})' ./sbom-reports/sbom-frontend-grype-report.json)
           echo "GRYPE_SUMMARY=$GRYPE_SUMMARY" >> $GITHUB_ENV
       - name: Notify Teams
         run: |
