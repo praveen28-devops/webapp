@@ -124,7 +124,7 @@ jobs:
       - name: Read build start time
         id: read_start
         run: |
-          START=$(cat build-start.txt)
+          START=$(cat build-start.txt | tr -d '\n')
           echo "START=$START" >> $GITHUB_ENV
       - name: Download Trivy report
         uses: actions/download-artifact@v4
@@ -138,9 +138,24 @@ jobs:
         run: |
           END=$(date -u +%s)
           DURATION=$((END-START))
-          echo "DURATION=${DURATION}s" >> $GITHUB_ENV
+          if [ $DURATION -lt 60 ]; then
+            DURATION_STR="$DURATION seconds"
+          elif [ $DURATION -lt 3600 ]; then
+            DURATION_STR="$((DURATION/60)) minutes $((DURATION%60)) seconds"
+          else
+            DURATION_STR="$((DURATION/3600)) hours $(((DURATION%3600)/60)) minutes $((DURATION%60)) seconds"
+          fi
+          echo "DURATION=$DURATION_STR" >> $GITHUB_ENV
+      - name: Download SBOM/Grype report
+        uses: actions/download-artifact@v4
+        with:
+          name: sbom-reports
+      - name: Extract SBOM/Grype Summary
+        run: |
+          GRYPE_SUMMARY=$(jq -r '[.matches[] | select(.vulnerability.severity == "High" or .vulnerability.severity == "Critical")] | group_by(.vulnerability.severity) | map({severity: .[0].vulnerability.severity, count: length})' ./sbom-output/sbom-frontend/sbom-frontend-grype-report.json)
+          echo "GRYPE_SUMMARY=$GRYPE_SUMMARY" >> $GITHUB_ENV
       - name: Notify Teams
         run: |
           curl -H 'Content-Type: application/json' \
-            -d "{\n  \"text\": \"🔔 Build Notification\\nBuild Status: ${{ job.status }}\\nBuild Date: $(date +%Y-%m-%d)\\nBuild Time: $(date +%H:%M:%S)\\nBuild Duration: ${DURATION}\\nWorkflow: ${{ github.workflow }}\\nBranch: ${{ github.ref_name }}\\nCommit: ${{ github.sha }}\\nActor: ${{ github.actor }}\\nRepository: ${{ github.repository }}\\nCommit Message: ${{ github.event.head_commit.message }}\\nCommit Author: ${{ github.event.head_commit.author.name }}\\nTrivy Vulnerabilities Summary: ${SUMMARY}\\nBuild completed successfully.\\nView Details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\\n\"\n}" \
+            -d "{\n  \"text\": \"🔔 Build Notification\\n📌 Build Status: ${{ job.status }}\\n📅 Build Date: $(date +%Y-%m-%d)\\n⏰ Build Time: $(date +%H:%M:%S)\\n⏳ Build Duration: ${DURATION}\\n🔧 Workflow: ${{ github.workflow }}\\n🌿 Branch: ${{ github.ref_name }}\\n🔑 Commit: ${{ github.sha }}\\n👤 Actor: ${{ github.actor }}\\n📦 Repository: ${{ github.repository }}\\n📝 Commit Message: ${{ github.event.head_commit.message }}\\n✍️ Commit Author: ${{ github.event.head_commit.author.name }}\\n📊 Trivy Vulnerabilities Summary: ${SUMMARY}\\n📊 SBOM/Grype Vulnerabilities Summary: ${GRYPE_SUMMARY}\\n✅ Build completed successfully.\\n🔗 View Details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\\n\"\n}" \
             "https://inocyx.webhook.office.com/webhookb2/b2f24366-6c59-4de0-9fc5-6963c73f1b5c@a63df4ca-e300-4210-9614-46f210e37dd6/IncomingWebhook/f65b150d9ec84769ba5f62af44604084/4d3a18ad-26bc-4a66-ad4b-f2275594f39e/V2ppctjoI9S4YQqiNw-XzZs_czSmC_QikjBRKbt1TLjK01"
