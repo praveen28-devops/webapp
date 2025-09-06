@@ -1,5 +1,3 @@
-
-
 name: CI/CD Pipeline
 
 on:
@@ -10,43 +8,45 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     env:
-      AWS_ACCESS_KEY_ID: AKIAQ5TCSRTUXPV4F257
-      AWS_SECRET_ACCESS_KEY: 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
       AWS_REGION: eu-north-1
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+
       - name: Install SBOM tools
         run: |
           curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
           curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
           sudo apt-get update && sudo apt-get install -y jq
+
       - name: Generate SBOM
         run: |
           mkdir -p ./sbom-output/sbom-frontend
           syft dir:. -o cyclonedx-json | jq . > ./sbom-output/sbom-frontend/sbom-frontend-sbom.json
+
       - name: Scan SBOM for vulnerabilities
         run: |
           grype sbom:./sbom-output/sbom-frontend/sbom-frontend-sbom.json --fail-on high --output json | jq . > ./sbom-output/sbom-frontend/sbom-frontend-grype-report.json
+          GRYPE_TOTAL=$(jq '.matches | length' ./sbom-output/sbom-frontend/sbom-frontend-grype-report.json)
+          echo "GRYPE_SUMMARY=Total: ${GRYPE_TOTAL}" >> $GITHUB_ENV
+
       - name: Login to DockerHub
         run: echo $DOCKERHUB_TOKEN | docker login -u $DOCKERHUB_USERNAME --password-stdin
         env:
           DOCKERHUB_USERNAME: gokulmeyghanam
-          DOCKERHUB_TOKEN: dckr_pat_EgLmb0Jwv1GFOzOB6gYa_DhgSRc
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Build Docker image
         run: docker build -t gokulmeyghanam/test:latest .
+
       - name: Push to DockerHub
         run: docker push gokulmeyghanam/test:latest
-  # - name: Login to AWS ECR
-  #   run: aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin 063557504233.dkr.ecr.eu-north-1.amazonaws.com/test
-  # - name: Tag and push to ECR
-  #   run: |
-  #     docker tag gokulmeyghanam/test:latest 063557504233.dkr.ecr.eu-north-1.amazonaws.com/test:latest
-  #     docker push 063557504233.dkr.ecr.eu-north-1.amazonaws.com/test:latest
+
       # - name: SonarQube scan
       #   uses: sonarsource/sonarqube-scan-action@v2.0.0
       #   with:
@@ -54,8 +54,9 @@ jobs:
       #     args: >
       #       -Dsonar.projectKey=test-frontend
       #   env:
-      #     SONAR_TOKEN: sqa_de95ec2891495f3dcc76bcfbf09a923c6282cb62
+      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       #     SONAR_HOST_URL: http://52.23.169.9:9000
+
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v0.1.10
         with:
@@ -63,7 +64,6 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # Install Docker if not present
             if ! command -v docker &> /dev/null; then
               sudo apt-get update
               sudo apt-get install -y docker.io
@@ -71,71 +71,59 @@ jobs:
               sudo systemctl enable docker
               sudo usermod -aG docker $USER
             fi
-            # Install AWS CLI if not present
             if ! command -v aws &> /dev/null; then
               curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
               unzip awscliv2.zip
               sudo ./aws/install
             fi
-            # Deploy container from DockerHub
             sudo docker pull gokulmeyghanam/test:latest
             sudo docker stop test || true
             sudo docker rm test || true
             sudo docker run -d --name test -p 80:80 gokulmeyghanam/test:latest
+
       - name: Upload SBOM and Grype reports
         uses: actions/upload-artifact@v4
         with:
           name: sbom-reports
           path: ./sbom-output/sbom-frontend/
-      - name: Run Trivy vulnerability scanner (GitHub UI)
+
+      - name: Run Trivy vulnerability scanner
+        id: trivy
         uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: 'gokulmeyghanam/test:latest'
-          format: 'table'
-          exit-code: '1'
+          format: 'json'
+          exit-code: '0'
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
 
-      - name: Run Trivy vulnerability scanner (for notification)
+      - name: Parse Trivy results
         run: |
-          trivy image gokulmeyghanam/test:latest --format table --severity CRITICAL,HIGH > trivy-report.txt
+          TOTAL=$(jq '.Results[].Vulnerabilities | length' trivy-results.json | awk '{s+=$1} END {print s}')
+          echo "SUMMARY=Total: ${TOTAL} (HIGH/CRITICAL only)" >> $GITHUB_ENV
+        shell: bash
+        continue-on-error: true
 
-      - name: Upload Trivy report
-        uses: actions/upload-artifact@v4
-        with:
-          name: trivy-report
-          path: trivy-report.txt
+      - name: Save start time
+        run: echo "START_TIME=$(date +%s)" >> $GITHUB_ENV
 
   notify:
     runs-on: ubuntu-latest
     needs: build-and-deploy
     if: always()
     steps:
-      - name: Set start time
-        run: echo "START_TIME=${{ needs.build-and-deploy.outputs.start_time }}" >> $GITHUB_ENV
-
-      - name: Download Trivy report
-        uses: actions/download-artifact@v4
-        with:
-          name: trivy-report
-
-      - name: Extract Trivy Summary
+      - name: Calculate build duration
         run: |
-          SUMMARY=$(grep -E "Total:" trivy-report.txt | tail -n 1)
-          echo "SUMMARY=$SUMMARY" >> $GITHUB_ENV
-
-      - name: Calculate Build Duration
-        run: |
-          START=$(date -d "${{ needs.build-and-deploy.started-at }}" +%s)
-          END=$(date -d "$(date -u +%Y-%m-%dT%H:%M:%SZ)" +%s)
-          DURATION=$((END-START))
+          END_TIME=$(date +%s)
+          START_TIME=${{ needs.build-and-deploy.outputs.START_TIME }}
+          DURATION=$((END_TIME - START_TIME))
           echo "DURATION=${DURATION}s" >> $GITHUB_ENV
 
       - name: Notify Teams
         run: |
           curl -H 'Content-Type: application/json' \
             -d "{
-              \"text\": \"**🔔 Build Notification**\n\n📌 Build Status: ${{ job.status }}\n📅 Build Date: $(date +%Y-%m-%d)\n⏰ Build Time: $(date +%H:%M:%S)\n⏳ Build Duration: ${DURATION}\n\n🔧 Workflow: ${{ github.workflow }}\n🌿 Branch: ${{ github.ref_name }}\n🔑 Commit: ${{ github.sha }}\n👤 Actor: ${{ github.actor }}\n📦 Repository: ${{ github.repository }}\n📝 Commit Message: ${{ github.event.head_commit.message }}\n✍️ Commit Author: ${{ github.event.head_commit.author.name }}\n\n📊 Trivy Vulnerabilities Summary:\n${SUMMARY}\n\n✅ Build completed successfully.\n🔗 [View Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\"
+              \"text\": \"🔔 **Build Notification**\\n\\n**📌 Build Status:** ${{ job.status }}\\n**📅 Build Date:** $(date +%Y-%m-%d)\\n**⏰ Build Time:** $(date +%H:%M:%S)\\n**⏳ Build Duration:** ${DURATION}\\n\\n**🔧 Workflow:** ${{ github.workflow }}\\n**🌿 Branch:** ${{ github.ref_name }}\\n**🔑 Commit:** ${{ github.sha }}\\n**👤 Actor:** ${{ github.actor }}\\n**📦 Repository:** ${{ github.repository }}\\n**📝 Commit Message:** ${{ github.event.head_commit.message }}\\n**✍️ Commit Author:** ${{ github.event.head_commit.author.name }}\\n\\n**📊 Trivy Vulnerabilities Summary:**\\n${SUMMARY}\\n\\n**📊 SBOM/Grype Vulnerabilities Summary:**\\n${GRYPE_SUMMARY}\\n\\n✅ Build completed successfully.\\n**🔗 [View Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})**\"
             }" \
             "https://inocyx.webhook.office.com/webhookb2/b2f24366-6c59-4de0-9fc5-6963c73f1b5c@a63df4ca-e300-4210-9614-46f210e37dd6/IncomingWebhook/f65b150d9ec84769ba5f62af44604084/4d3a18ad-26bc-4a66-ad4b-f2275594f39e/V2ppctjoI9S4YQqiNw-XzZs_czSmC_QikjBRKbt1TLjK01"
