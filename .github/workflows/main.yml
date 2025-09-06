@@ -97,33 +97,44 @@ jobs:
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
 
+      - name: Notify Teams
+        run: |
+          curl -H 'Content-Type: application/json' \
+            -d '{"text": "Build ${{ job.status }} for test-notification! Workflow: ${{ github.workflow }} Branch: ${{ github.ref }} Commit: ${{ github.sha }}"}' \
+            "https://inocyx.webhook.office.com/webhookb2/b2f24366-6c59-4de0-9fc5-6963c73f1b5c@a63df4ca-e300-4210-9614-46f210e37dd6/IncomingWebhook/f65b150d9ec84769ba5f62af44604084/4d3a18ad-26bc-4a66-ad4b-f2275594f39e/V2ppctjoI9S4YQqiNw-XzZs_czSmC_QikjBRKbt1TLjK01"
+
   notify:
     runs-on: ubuntu-latest
     needs: build-and-deploy
     if: always()
     steps:
-      - name: Send email notification
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          username: "gokulmeyghanam@gmail.com"
-          password: "dfwy ujer atnt hhzl"
-          subject: ${{ job.status == 'success' && 'Build Success' || 'Build Failure' }} - DevBlog CI/CD
-          to: |
-            gokulmjobs@gmail.com
-          from: "DevBlog CI/CD <your_email@gmail.com>"
-          body: |
-            The build for DevBlog has ${{ job.status }}.
-            Workflow: ${{ github.workflow }}
-            Branch: ${{ github.ref }}
-            Commit: ${{ github.sha }}
-            See details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          secure: true
-          ignore_cert: true
-          priority: high
-          convert_markdown: true
-          attachments: ''
+      - name: Notify Teams
+        run: |
+          curl -H 'Content-Type: application/json' \
+            -d '{"text": "Build ${{ job.status }} for DevBlog! Workflow: ${{ github.workflow }} Branch: ${{ github.ref }} Commit: ${{ github.sha }}"}' \
+            "https://inocyx.webhook.office.com/webhookb2/b2f24366-6c59-4de0-9fc5-6963c73f1b5c@a63df4ca-e300-4210-9614-46f210e37dd6/IncomingWebhook/f65b150d9ec84769ba5f62af44604084/4d3a18ad-26bc-4a66-ad4b-f2275594f39e/V2ppctjoI9S4YQqiNw-XzZs_czSmC_QikjBRKbt1TLjK01"
+  # - name: Send email notification
+  #   uses: dawidd6/action-send-mail@v3
+  #   with:
+  #     server_address: smtp.gmail.com
+  #     server_port: 465
+  #     username: "gokulmeyghanam@gmail.com"
+  #     password: "dfwy ujer atnt hhzl"
+  #     subject: ${{ job.status == 'success' && 'Build Success' || 'Build Failure' }} - DevBlog CI/CD
+  #     to: |
+  #       gokulmjobs@gmail.com
+  #     from: "DevBlog CI/CD <your_email@gmail.com>"
+  #     body: |
+  #       The build for DevBlog has ${{ job.status }}.
+  #       Workflow: ${{ github.workflow }}
+  #       Branch: ${{ github.ref }}
+  #       Commit: ${{ github.sha }}
+  #       See details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  #     secure: true
+  #     ignore_cert: true
+  #     priority: high
+  #     convert_markdown: true
+  #     attachments: ''
       - name: Checkout code
         uses: actions/checkout@v4
 
