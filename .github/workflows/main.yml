@@ -59,7 +59,7 @@ jobs:
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v0.1.10
         with:
-          host: 51.21.161.173
+          host: 13.62.105.16
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
@@ -108,7 +108,7 @@ jobs:
           server_address: smtp.gmail.com
           server_port: 465
           username: "gokulmeyghanam@gmail.com"
-          password: "Gokul@8668"
+          password: "dfwy ujer atnt hhzl"
           subject: ${{ job.status == 'success' && 'Build Success' || 'Build Failure' }} - DevBlog CI/CD
           to: |
             gokulmjobs@gmail.com
