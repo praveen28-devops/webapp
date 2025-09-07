@@ -53,45 +53,30 @@ jobs:
       - name: Push to DockerHub
         run: docker push gokulmeyghanam/test:latest
 
-      - name: Run Trivy vulnerability scanner (GitHub UI)
-        if: always()
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: 'gokulmeyghanam/test:latest'
-          format: 'table'
-          exit-code: '0'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
-
-      - name: Run Trivy vulnerability scanner (for notification)
-        if: always()
-        run: |
-          trivy image gokulmeyghanam/test:latest --format table --severity CRITICAL,HIGH > trivy-report.txt || echo "Trivy scan failed" > trivy-report.txt
-
-      - name: Upload Trivy report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: trivy-report
-          path: trivy-report.txt
-
-      - name: Upload SBOM and Grype reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom-reports
-          path: ./sbom-output/sbom-frontend/
-
-      # 🚀 Deploy to EC2 moved LAST so failures don’t block Trivy/SBOM
+      # Deploy comes last
       - name: Deploy to EC2
-        if: always()
+        id: deploy_ec2
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: 13.62.105.16
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            # Install Docker if not present
+            if ! command -v docker &> /dev/null; then
+              sudo apt-get update
+              sudo apt-get install -y docker.io
+              sudo systemctl start docker
+              sudo systemctl enable docker
+              sudo usermod -aG docker $USER
+            fi
+            # Install AWS CLI if not present
+            if ! command -v aws &> /dev/null; then
+              curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+              unzip awscliv2.zip
+              sudo ./aws/install
+            fi
+            # Deploy container from DockerHub
             sudo docker pull gokulmeyghanam/test:latest
             sudo docker stop test || true
             sudo docker rm test || true
@@ -112,7 +97,7 @@ jobs:
           name: build-start-date
           path: build-start-date.txt
 
-      - name: Upload build start time (clock)
+      - name: Upload build start time
         uses: actions/upload-artifact@v4
         with:
           name: build-start-time
@@ -124,6 +109,32 @@ jobs:
           name: build-end
           path: build-end.txt
 
+      - name: Upload SBOM and Grype reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-reports
+          path: ./sbom-output/sbom-frontend/
+
+      - name: Run Trivy vulnerability scanner (GitHub UI)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: 'gokulmeyghanam/test:latest'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Run Trivy vulnerability scanner (for notification)
+        run: |
+          trivy image gokulmeyghanam/test:latest --format table --severity CRITICAL,HIGH > trivy-report.txt
+
+      - name: Upload Trivy report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report
+          path: trivy-report.txt
+
   notify:
     runs-on: ubuntu-latest
     needs: build-and-deploy
@@ -133,6 +144,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: trivy-report
+          path: .
 
       - name: Extract Trivy Summary
         run: |
@@ -146,6 +158,16 @@ jobs:
       - name: Notify Teams
         run: |
           set -x
-          PAYLOAD="{\"text\": \"🔔 Build Notification\n📌 Build Status: ${{ job.status }}\n🔧 Workflow: ${{ github.workflow }}\n🌿 Branch: ${{ github.ref_name }}\n🔑 Commit: ${{ github.sha }}\n👤 Actor: ${{ github.actor }}\n📦 Repository: ${{ github.repository }}\n📝 Commit Message: ${{ github.event.head_commit.message }}\n✍️ Commit Author: ${{ github.event.head_commit.author.name }}\n📊 Trivy Vulnerabilities Summary: ${SUMMARY}\n✅ Build completed (check logs for status).\n🔗 View Details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}"
+          PAYLOAD="{\"text\": \"🔔 Build Notification\n
+📌 Deploy Status: ${{ needs.build-and-deploy.outputs.deploy_status || 'unknown' }}\n
+🔧 Workflow: ${{ github.workflow }}\n
+🌿 Branch: ${{ github.ref_name }}\n
+🔑 Commit: ${{ github.sha }}\n
+👤 Actor: ${{ github.actor }}\n
+📦 Repository: ${{ github.repository }}\n
+📝 Commit Message: ${{ github.event.head_commit.message }}\n
+✍️ Commit Author: ${{ github.event.head_commit.author.name }}\n
+📊 Trivy Vulnerabilities Summary: ${SUMMARY}\n
+🔗 View Details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}"
           RESPONSE=$(curl -s -w "\nHTTP_STATUS_CODE:%{http_code}\n" -H 'Content-Type: application/json' -d "$PAYLOAD" "https://inocyx.webhook.office.com/webhookb2/b2f24366-6c59-4de0-9fc5-6963c73f1b5c@a63df4ca-e300-4210-9614-46f210e37dd6/IncomingWebhook/800e796faa9947378fab26556aaa2fa5/4d3a18ad-26bc-4a66-ad4b-f2275594f39e/V2UoD_mqlKfFWQnDY0fzQZP9bnZHlPcKpEz3udQ3zh-LU1")
           echo "$RESPONSE"
