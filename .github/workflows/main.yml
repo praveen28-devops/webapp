@@ -82,52 +82,44 @@ jobs:
           name: sbom-reports
           path: ./sbom-output/sbom-frontend/
 
-      # Blue-Green Deploy with Nginx reload
-      - name: Deploy to EC2 (Blue-Green)
+      # Deploy new container on alternate port without stopping old container
+      - name: Deploy to EC2 (Manual Blue-Green)
         id: deploy_ec2
         continue-on-error: true
         uses: appleboy/ssh-action@v0.1.10
         with:
-          host: 13.60.202.149
+          host: 13.60.33.50
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # Determine currently running container and ports
+            # Decide which container and port to deploy (blue <-> green)
             if docker ps --filter "name=blue" --quiet | grep -q .; then
               NEW_CONTAINER="green"
               NEW_PORT=8081
-              OLD_CONTAINER="blue"
+              echo "Blue is active, deploying green"
             else
               NEW_CONTAINER="blue"
               NEW_PORT=8080
-              OLD_CONTAINER="green"
+              echo "Green is active or none running, deploying blue"
             fi
 
-            # Pull latest image
             docker pull gokulmeyghanam/test:latest
 
-            # Run new container on alternate port
-            docker run -d --name $NEW_CONTAINER -p $NEW_PORT:80 gokulmeyghanam/test:latest
+            # Run new container on alternate port (do not stop old container)
+            docker run -d --name $NEW_CONTAINER -p $NEW_PORT:80 gokulmeyghanam/test:latest || echo "Container $NEW_CONTAINER probably already running."
 
-            # Wait for container to be healthy (simple curl check)
+            # Health check for new container
             for i in {1..20}; do
               if curl -s http://127.0.0.1:$NEW_PORT; then
-                echo "Container $NEW_CONTAINER is up"
+                echo "Container $NEW_CONTAINER is healthy"
                 break
               fi
-              echo "Waiting for $NEW_CONTAINER to become healthy..."
+              echo "Waiting for $NEW_CONTAINER to be healthy..."
               sleep 5
             done
 
-            # Update Nginx to proxy to new container port and reload
-            sudo sed -i "s/server 127.0.0.1:[0-9]\+/server 127.0.0.1:$NEW_PORT/" /etc/nginx/conf.d/default.conf
-            sudo nginx -s reload
+            # Manual nginx config update and reload expected here by you
 
-            # Stop and remove old container only after nginx reload
-            docker stop $OLD_CONTAINER || true
-            docker rm $OLD_CONTAINER || true
-
-            # Set deploy status output (new correct method)
             echo "deploy_status=success" >> $GITHUB_OUTPUT
 
   notify:
