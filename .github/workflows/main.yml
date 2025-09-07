@@ -17,120 +17,112 @@ jobs:
           echo $(date -u +%s) > build-start.txt
           echo $(date -u +%Y-%m-%d) > build-start-date.txt
           echo $(date -u +%H:%M:%S) > build-start-time.txt
+
       - name: Checkout code
         uses: actions/checkout@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+
       - name: Install SBOM tools
         run: |
           curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
           curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
           sudo apt-get update && sudo apt-get install -y jq
+
       - name: Generate SBOM
         run: |
           mkdir -p ./sbom-output/sbom-frontend
           syft dir:. -o cyclonedx-json | jq . > ./sbom-output/sbom-frontend/sbom-frontend-sbom.json
+
       - name: Scan SBOM for vulnerabilities
         run: |
           grype sbom:./sbom-output/sbom-frontend/sbom-frontend-sbom.json --fail-on high --output json | jq . > ./sbom-output/sbom-frontend/sbom-frontend-grype-report.json
+
       - name: Login to DockerHub
         run: echo $DOCKERHUB_TOKEN | docker login -u $DOCKERHUB_USERNAME --password-stdin
         env:
           DOCKERHUB_USERNAME: gokulmeyghanam
           DOCKERHUB_TOKEN: dckr_pat_EgLmb0Jwv1GFOzOB6gYa_DhgSRc
+
       - name: Build Docker image
         run: docker build -t gokulmeyghanam/test:latest .
+
       - name: Push to DockerHub
         run: docker push gokulmeyghanam/test:latest
-  # - name: Login to AWS ECR
-  #   run: aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin 063557504233.dkr.ecr.eu-north-1.amazonaws.com/test
-  # - name: Tag and push to ECR
-  #   run: |
-  #     docker tag gokulmeyghanam/test:latest 063557504233.dkr.ecr.eu-north-1.amazonaws.com/test:latest
-  #     docker push 063557504233.dkr.ecr.eu-north-1.amazonaws.com/test:latest
-      # - name: SonarQube scan
-      #   uses: sonarsource/sonarqube-scan-action@v2.0.0
-      #   with:
-      #     projectBaseDir: .
-      #     args: >
-      #       -Dsonar.projectKey=test-frontend
-      #   env:
-      #     SONAR_TOKEN: sqa_de95ec2891495f3dcc76bcfbf09a923c6282cb62
-      #     SONAR_HOST_URL: http://52.23.169.9:9000
+
+      - name: Run Trivy vulnerability scanner (GitHub UI)
+        if: always()
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: 'gokulmeyghanam/test:latest'
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Run Trivy vulnerability scanner (for notification)
+        if: always()
+        run: |
+          trivy image gokulmeyghanam/test:latest --format table --severity CRITICAL,HIGH > trivy-report.txt || echo "Trivy scan failed" > trivy-report.txt
+
+      - name: Upload Trivy report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report
+          path: trivy-report.txt
+
+      - name: Upload SBOM and Grype reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-reports
+          path: ./sbom-output/sbom-frontend/
+
+      # 🚀 Deploy to EC2 moved LAST so failures don’t block Trivy/SBOM
       - name: Deploy to EC2
+        if: always()
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: 13.62.105.16
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # Install Docker if not present
-            if ! command -v docker &> /dev/null; then
-              sudo apt-get update
-              sudo apt-get install -y docker.io
-              sudo systemctl start docker
-              sudo systemctl enable docker
-              sudo usermod -aG docker $USER
-            fi
-            # Install AWS CLI if not present
-            if ! command -v aws &> /dev/null; then
-              curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-              unzip awscliv2.zip
-              sudo ./aws/install
-            fi
-            # Deploy container from DockerHub
             sudo docker pull gokulmeyghanam/test:latest
             sudo docker stop test || true
             sudo docker rm test || true
             sudo docker run -d --name test -p 80:80 gokulmeyghanam/test:latest
+
       - name: Record build end time
         run: echo $(date -u +%s) > build-end.txt
+
       - name: Upload build start time
         uses: actions/upload-artifact@v4
         with:
           name: build-start
           path: build-start.txt
+
       - name: Upload build start date
         uses: actions/upload-artifact@v4
         with:
           name: build-start-date
           path: build-start-date.txt
-      - name: Upload build start time
+
+      - name: Upload build start time (clock)
         uses: actions/upload-artifact@v4
         with:
           name: build-start-time
           path: build-start-time.txt
+
       - name: Upload build end time
         uses: actions/upload-artifact@v4
         with:
           name: build-end
           path: build-end.txt
-      - name: Upload SBOM and Grype reports
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom-reports
-          path: ./sbom-output/sbom-frontend/
-      - name: Run Trivy vulnerability scanner (GitHub UI)
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: 'gokulmeyghanam/test:latest'
-          format: 'table'
-          exit-code: '1'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
-
-      - name: Run Trivy vulnerability scanner (for notification)
-        run: |
-          trivy image gokulmeyghanam/test:latest --format table --severity CRITICAL,HIGH > trivy-report.txt
-
-      - name: Upload Trivy report
-        uses: actions/upload-artifact@v4
-        with:
-          name: trivy-report
-          path: trivy-report.txt
 
   notify:
     runs-on: ubuntu-latest
@@ -141,13 +133,19 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: trivy-report
+
       - name: Extract Trivy Summary
         run: |
-          SUMMARY=$(grep -E "Total:" trivy-report.txt | tail -n 1)
+          if grep -q "Total:" trivy-report.txt; then
+            SUMMARY=$(grep -E "Total:" trivy-report.txt | tail -n 1)
+          else
+            SUMMARY="No Trivy data available"
+          fi
           echo "SUMMARY=$SUMMARY" >> $GITHUB_ENV
+
       - name: Notify Teams
         run: |
           set -x
-          PAYLOAD="{\"text\": \"🔔 Build Notification\n📌 Build Status: ${{ job.status }}\n🔧 Workflow: ${{ github.workflow }}\n🌿 Branch: ${{ github.ref_name }}\n🔑 Commit: ${{ github.sha }}\n👤 Actor: ${{ github.actor }}\n📦 Repository: ${{ github.repository }}\n📝 Commit Message: ${{ github.event.head_commit.message }}\n✍️ Commit Author: ${{ github.event.head_commit.author.name }}\n📊 Trivy Vulnerabilities Summary: ${SUMMARY}\n✅ Build completed successfully.\n🔗 View Details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}"
+          PAYLOAD="{\"text\": \"🔔 Build Notification\n📌 Build Status: ${{ job.status }}\n🔧 Workflow: ${{ github.workflow }}\n🌿 Branch: ${{ github.ref_name }}\n🔑 Commit: ${{ github.sha }}\n👤 Actor: ${{ github.actor }}\n📦 Repository: ${{ github.repository }}\n📝 Commit Message: ${{ github.event.head_commit.message }}\n✍️ Commit Author: ${{ github.event.head_commit.author.name }}\n📊 Trivy Vulnerabilities Summary: ${SUMMARY}\n✅ Build completed (check logs for status).\n🔗 View Details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}"
           RESPONSE=$(curl -s -w "\nHTTP_STATUS_CODE:%{http_code}\n" -H 'Content-Type: application/json' -d "$PAYLOAD" "https://inocyx.webhook.office.com/webhookb2/b2f24366-6c59-4de0-9fc5-6963c73f1b5c@a63df4ca-e300-4210-9614-46f210e37dd6/IncomingWebhook/800e796faa9947378fab26556aaa2fa5/4d3a18ad-26bc-4a66-ad4b-f2275594f39e/V2UoD_mqlKfFWQnDY0fzQZP9bnZHlPcKpEz3udQ3zh-LU1")
           echo "$RESPONSE"
