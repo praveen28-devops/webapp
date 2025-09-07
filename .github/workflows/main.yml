@@ -7,8 +7,9 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    # expose the deploy step outcome as a job output
     outputs:
-      deploy_status: ${{ steps.deploy_ec2.outcome }}
+      deploy_status: ${{ steps.set_deploy_status.outputs.deploy_status }}
     env:
       AWS_ACCESS_KEY_ID: AKIAQ5TCSRTUXPV4F257
       AWS_SECRET_ACCESS_KEY: 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
@@ -55,9 +56,39 @@ jobs:
       - name: Push to DockerHub
         run: docker push gokulmeyghanam/test:latest
 
-      # Deploy comes last
+      # Trivy for GitHub UI; do not stop the job if it finds vulns
+      - name: Run Trivy vulnerability scanner (GitHub UI)
+        uses: aquasecurity/trivy-action@0.28.0
+        continue-on-error: true
+        with:
+          image-ref: 'gokulmeyghanam/test:latest'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      # Trivy for notification (always produce a file)
+      - name: Run Trivy vulnerability scanner (for notification)
+        run: |
+          trivy image gokulmeyghanam/test:latest --format table --severity CRITICAL,HIGH > trivy-report.txt || echo "Trivy scan failed or image missing" > trivy-report.txt
+
+      - name: Upload Trivy report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report
+          path: trivy-report.txt
+
+      - name: Upload SBOM and Grype reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-reports
+          path: ./sbom-output/sbom-frontend/
+
+      # 🚀 Deploy comes last; allow the step to fail without aborting the rest (we capture its outcome)
       - name: Deploy to EC2
         id: deploy_ec2
+        continue-on-error: true
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: 13.62.105.16
@@ -84,6 +115,12 @@ jobs:
             sudo docker rm test || true
             sudo docker run -d --name test -p 80:80 gokulmeyghanam/test:latest
 
+      # Map the deploy step outcome into a step output so it can be exposed as a job output
+      - name: Set deploy status output
+        id: set_deploy_status
+        run: |
+          echo "deploy_status=${{ steps.deploy_ec2.outcome }}" >> $GITHUB_OUTPUT
+
       - name: Record build end time
         run: echo $(date -u +%s) > build-end.txt
 
@@ -99,7 +136,7 @@ jobs:
           name: build-start-date
           path: build-start-date.txt
 
-      - name: Upload build start time
+      - name: Upload build start time (clock)
         uses: actions/upload-artifact@v4
         with:
           name: build-start-time
@@ -110,32 +147,6 @@ jobs:
         with:
           name: build-end
           path: build-end.txt
-
-      - name: Upload SBOM and Grype reports
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom-reports
-          path: ./sbom-output/sbom-frontend/
-
-      - name: Run Trivy vulnerability scanner (GitHub UI)
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: 'gokulmeyghanam/test:latest'
-          format: 'table'
-          exit-code: '1'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
-
-      - name: Run Trivy vulnerability scanner (for notification)
-        run: |
-          trivy image gokulmeyghanam/test:latest --format table --severity CRITICAL,HIGH > trivy-report.txt
-
-      - name: Upload Trivy report
-        uses: actions/upload-artifact@v4
-        with:
-          name: trivy-report
-          path: trivy-report.txt
 
   notify:
     runs-on: ubuntu-latest
@@ -160,17 +171,6 @@ jobs:
       - name: Notify Teams
         run: |
           set -x
-          DEPLOY_STATUS="${{ needs.build-and-deploy.outputs.deploy_status }}"
-          PAYLOAD="{\"text\": \"🔔 Build Notification\n
-📌 Deploy Status: ${DEPLOY_STATUS}\n
-🔧 Workflow: ${{ github.workflow }}\n
-🌿 Branch: ${{ github.ref_name }}\n
-🔑 Commit: ${{ github.sha }}\n
-👤 Actor: ${{ github.actor }}\n
-📦 Repository: ${{ github.repository }}\n
-📝 Commit Message: ${{ github.event.head_commit.message }}\n
-✍️ Commit Author: ${{ github.event.head_commit.author.name }}\n
-📊 Trivy Vulnerabilities Summary: ${SUMMARY}\n
-🔗 View Details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}"
+          PAYLOAD="{\"text\":\"🔔 **Build Notification**\\n**📌 Deploy Status:** ${{ needs.build-and-deploy.outputs.deploy_status }}\\n**🔧 Workflow:** ${{ github.workflow }}\\n**🌿 Branch:** ${{ github.ref_name }}\\n**🔑 Commit:** ${{ github.sha }}\\n**👤 Actor:** ${{ github.actor }}\\n**📦 Repository:** ${{ github.repository }}\\n**📝 Commit Message:** ${{ github.event.head_commit.message }}\\n**✍️ Commit Author:** ${{ github.event.head_commit.author.name }}\\n**📊 Trivy Vulnerabilities Summary:** $SUMMARY\\n**🔗 View Details:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}"
           RESPONSE=$(curl -s -w "\nHTTP_STATUS_CODE:%{http_code}\n" -H 'Content-Type: application/json' -d "$PAYLOAD" "https://inocyx.webhook.office.com/webhookb2/b2f24366-6c59-4de0-9fc5-6963c73f1b5c@a63df4ca-e300-4210-9614-46f210e37dd6/IncomingWebhook/800e796faa9947378fab26556aaa2fa5/4d3a18ad-26bc-4a66-ad4b-f2275594f39e/V2UoD_mqlKfFWQnDY0fzQZP9bnZHlPcKpEz3udQ3zh-LU1")
           echo "$RESPONSE"
