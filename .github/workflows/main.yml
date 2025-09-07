@@ -113,7 +113,7 @@ jobs:
             sudo docker pull gokulmeyghanam/test:latest
             sudo docker stop test || true
             sudo docker rm test || true
-            sudo docker run -d --name test -p 80:8080 gokulmeyghanam/test:latest
+            sudo docker run -d --name test -p 8080:80 gokulmeyghanam/test:latest
 
       # Map the deploy step outcome into a step output so it can be exposed as a job output
       - name: Set deploy status output
