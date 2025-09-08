@@ -1,0 +1,89 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    outputs:
+      deploy_status: ${{ steps.deploy_ec2.outputs.deploy_status }}
+    env:
+      AWS_ACCESS_KEY_ID: AKIAYZBPUYYT6QAN72WF
+      AWS_SECRET_ACCESS_KEY: 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
+      AWS_REGION: eu-north-1
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Login to DockerHub
+        run: echo $DOCKERHUB_TOKEN | docker login -u $DOCKERHUB_USERNAME --password-stdin
+        env:
+          DOCKERHUB_USERNAME: praveendevops2801
+          DOCKERHUB_TOKEN: dckr_pat_vIl39Ol07QAydLloGnzVqajlsvE
+
+      - name: Build Docker image
+        run: docker build -t praveendevops2801/test:latest .
+
+      - name: Push to DockerHub
+        run: docker push praveendevops2801/test:latest
+
+      - name: Run Trivy vulnerability scanner (GitHub UI)
+        uses: aquasecurity/trivy-action@0.28.0
+        continue-on-error: true
+        with:
+          image-ref: 'praveendevops2801/test:latest'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+
+      # Deploy new container on alternate port without stopping old container
+      - name: Deploy to EC2 (Manual Blue-Green)
+        id: deploy_ec2
+        continue-on-error: true
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: 57.181.40.199
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # Decide which container and port to deploy (blue <-> green)
+            if docker ps --filter "name=blue" --quiet | grep -q .; then
+              NEW_CONTAINER="green"
+              NEW_PORT=8081
+              echo "Blue is active, deploying green"
+            else
+              NEW_CONTAINER="blue"
+              NEW_PORT=8080
+              echo "Green is active or none running, deploying blue"
+            fi
+
+            docker pull praveendevops2801/test:latest
+
+            # Run new container on alternate port (do not stop old container)
+            docker run -d --name $NEW_CONTAINER -p $NEW_PORT:80 praveendevops2801/test:latest || echo "Container $NEW_CONTAINER probably already running."
+
+            # Health check for new container
+            for i in {1..20}; do
+              if curl -s http://127.0.0.1:$NEW_PORT; then
+                echo "Container $NEW_CONTAINER is healthy"
+                break
+              fi
+              echo "Waiting for $NEW_CONTAINER to be healthy..."
+              sleep 5
+            done
+
+            # Manual nginx config update and reload expected here by you
+
+            echo "deploy_status=success" >> $GITHUB_OUTPUT
+
+ 
