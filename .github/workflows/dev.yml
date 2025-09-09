@@ -43,7 +43,7 @@ jobs:
         continue-on-error: true
         uses: appleboy/ssh-action@v0.1.10
         with:
-          host: 57.181.40.199
+          host: 43.207.89.196
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
