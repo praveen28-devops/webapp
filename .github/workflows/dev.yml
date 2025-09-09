@@ -1,9 +1,7 @@
 name: CI/CD Pipeline
-
 on:
   push:
     branches: [main]
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -16,24 +14,19 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-
       - name: Login to DockerHub
         run: echo $DOCKERHUB_TOKEN | docker login -u $DOCKERHUB_USERNAME --password-stdin
         env:
           DOCKERHUB_USERNAME: praveendevops2801
           DOCKERHUB_TOKEN: dckr_pat_vIl39Ol07QAydLloGnzVqajlsvE
-
       - name: Build Docker image
         run: docker build -t praveendevops2801/test:latest .
-
       - name: Push to DockerHub
         run: docker push praveendevops2801/test:latest
-
       - name: Run Trivy vulnerability scanner (GitHub UI)
         uses: aquasecurity/trivy-action@0.28.0
         continue-on-error: true
@@ -44,8 +37,6 @@ jobs:
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
-
-
       # Deploy new container on alternate port without stopping old container
       - name: Deploy to EC2 (Manual Blue-Green)
         id: deploy_ec2
@@ -57,7 +48,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             # Decide which container and port to deploy (blue <-> green)
-            if docker ps --filter "name=blue" --quiet | grep -q .; then
+            if sudo docker ps --filter "name=blue" --quiet | grep -q .; then
               NEW_CONTAINER="green"
               NEW_PORT=8081
               echo "Blue is active, deploying green"
@@ -66,24 +57,29 @@ jobs:
               NEW_PORT=8080
               echo "Green is active or none running, deploying blue"
             fi
-
-            docker pull praveendevops2801/test:latest
-
-            # Run new container on alternate port (do not stop old container)
-            docker run -d --name $NEW_CONTAINER -p $NEW_PORT:80 praveendevops2801/test:latest || echo "Container $NEW_CONTAINER probably already running."
-
+            
+            # Pull latest image
+            sudo docker pull praveendevops2801/test:latest
+            
+            # Stop and remove existing container if it exists
+            sudo docker stop $NEW_CONTAINER 2>/dev/null || true
+            sudo docker rm $NEW_CONTAINER 2>/dev/null || true
+            
+            # Run new container on alternate port
+            sudo docker run -d --name $NEW_CONTAINER -p $NEW_PORT:80 praveendevops2801/test:latest
+            
             # Health check for new container
+            echo "Performing health check for $NEW_CONTAINER on port $NEW_PORT..."
             for i in {1..20}; do
-              if curl -s http://127.0.0.1:$NEW_PORT; then
+              if curl -s http://127.0.0.1:$NEW_PORT > /dev/null; then
                 echo "Container $NEW_CONTAINER is healthy"
-                break
+                echo "deploy_status=success" >> "$GITHUB_OUTPUT"
+                exit 0
               fi
-              echo "Waiting for $NEW_CONTAINER to be healthy..."
+              echo "Waiting for $NEW_CONTAINER to be healthy... (attempt $i/20)"
               sleep 5
             done
-
-            # Manual nginx config update and reload expected here by you
-
-            echo "deploy_status=success" >> $GITHUB_OUTPUT
-
- 
+            
+            echo "Health check failed for $NEW_CONTAINER"
+            echo "deploy_status=failed" >> "$GITHUB_OUTPUT"
+            exit 1
